@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Instance A Template  - App server
+
+
+
+Parameters:
+  VPCId:
+    Description: Name of VPC Id Output
+    Type: String
+    #Default: demoVPC1ID
+
+  PublicSubnetId:
+    Description: Name of Subnet Id variable from Output
+    Type: String  
+ 
+
+  CidrBlock: 
+    Description: Name of CidrBlock Output
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
+    #Default: 10.0.1.0/24
+
+  SubnetId:
+    Description: Name of the variable for Subnet Id to Output
+    Type: String  
+
+Resources:
+
+  # an EC2 instance depending on the below security group
+  ec2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn: ["securityGroup","Subnet"]
+    Properties:
+      InstanceType: "t3.micro"
+      ImageId:  "ami-0fe8bec493a81c7da"
+      KeyName: "AWS_keypair"
+      SecurityGroupIds: 
+        - !Ref securityGroup
+      SubnetId: !Ref Subnet
+  
+      Tags:
+        - Key: "Name"
+          Value: "instance"
+        - Key: "Project"
+          Value: "atudevopsdemo"  
+
+ # security group starts here
+  securityGroup:
+    # security group for the above ec2 instance
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow ssh to client host
+      VpcId: 
+        Fn::ImportValue: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80    #webpage browser host 
+          ToPort: 80
+          CidrIp: "10.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 22  #ssh connection port
+          ToPort: 22
+          CidrIp: "10.0.0.0/0"
+ 
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 22  #ssh connection port
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80   #webpage browser host
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 5432   
+          ToPort: 5432
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 443  #https 
+          ToPort: 443
+          CidrIp: "0.0.0.0/0" 
+       #<ideally below needed to control outbound>
+    #   - IpProtocol: tcp
+    #     FromPort: 5432
+    #     ToPort: 5432
+    #     CidrIp: "10.0.3.0/0"     
+    #   - IpProtocol: tcp
+    #     FromPort: 5432
+     #     ToPort: 5432
+     #     CidrIp: "10.0.4.0/0"
+
+ # Subnet config
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+     # DependsOn: ["demoVPC1"]
+      VpcId: 
+        Fn::ImportValue: !Ref VPCId
+      #CidrBlock: 10.0.1.0/24
+      CidrBlock: !Ref CidrBlock
+
+      AvailabilityZone: eu-north-1a
+      MapPublicIpOnLaunch: false    #jumpbox subnet public  for other box set as false
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1Subnet
+       - Key: Name
+         Value: SubnetId
+ 
+  # RouteTable for Subnet
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+   # DependsOn: ["demoVPC1"]
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Ref VPCId
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1RouteTable
+       - Key: Name
+         Value: RouteTableId
+ 
+  # Associate Subnet and Routetable
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: ["Subnet","RouteTable"]
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet
+#-----------------------------#
+  # Route for NAT Gateway
+  NATGatewayRoute:
+    Type: AWS::EC2::Route
+   # DependsOn: ["NATGateway"]
+    #Condition: CreateNATRoute
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  # NAT Gateway meant for private subnet
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Fn::ImportValue: !Ref PublicSubnetId
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1
+    #   - Key: Name
+    #     Value: !Ref NATGatewayId
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+

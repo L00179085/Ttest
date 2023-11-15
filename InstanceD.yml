@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Instance D Template .DBInstance with PostgreSql
+
+
+
+Parameters:
+ 
+  DBSubnetGroupName:
+    Description: Name of DBSubnetGroupName Output
+    Type: String
+  DBInstanceIdentifier:
+    Description: Name of DBInstanceIdentifier
+    Type: String
+  DBUsername:
+    Description: Name of DBUsername
+    Type: String
+  DBPassword:
+    Description: Name of DBPassword
+    Type: String
+
+  VPCId:
+    Description: Name of VPC Id Output
+    Type: String
+    #Default: demoVPC1ID
+
+  CidrBlock1: 
+    Description: Name of CidrBlock Output
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
+    #Default: 10.0.3.0/24
+  
+  CidrBlock2: 
+    Description: Name of CidrBlock Output
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: "must be a valid IP CIDR range of the form x.x.x.x/x."
+    #Default: 10.0.4.0/24
+
+Resources:
+
+  # DB instance depending on the below security group
+ 
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName: !Ref DBSubnetGroupName
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      VPCSecurityGroups:
+        - !GetAtt DBEC2SecurityGroup.GroupId
+      AllocatedStorage: "5"
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+# subnetgroup for two subnets
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Ref DBSubnetGroupName
+      DBSubnetGroupDescription: DBSubnetGroupDescription
+      SubnetIds:
+        - !Ref Subnet1  #parameterised for reusability
+        - !Ref Subnet2
+      Tags:
+        - Key: Name
+          Value: !Ref DBSubnetGroupName
+
+# Security group to allow tcp on postgre port
+  DBEC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Ref VPCId  #imported from another.i.e VPCstack , output of VPC
+      GroupName: VPCSecurityGroupsName  #hardcoded
+      GroupDescription: Allow postgres inbound traffic
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: "0.0.0.0/0"   # allowed from All..ideally allow from A 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: VPCSecurityGroupsName
+
+ # Subnet config  - 1
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+     # DependsOn: ["demoVPC1"]
+      VpcId: 
+        Fn::ImportValue: !Ref VPCId
+      #CidrBlock: 10.0.3.0/24
+      CidrBlock: !Ref CidrBlock1
+
+      AvailabilityZone: eu-north-1a
+      MapPublicIpOnLaunch: false    #jumpbox subnet public  for other box set as false
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1Subnet
+       - Key: Name
+         Value: SubnetId
+ 
+  # RouteTable for Subnet
+  RouteTable1:
+    Type: AWS::EC2::RouteTable
+   # DependsOn: ["demoVPC1"]
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Ref VPCId
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1RouteTable
+       - Key: Name
+         Value: RouteTableId1
+ 
+  # Associate Subnet and Routetable
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: ["Subnet1","RouteTable1"]
+    Properties:
+      RouteTableId: !Ref RouteTable1
+      SubnetId: !Ref Subnet1
+
+ # Subnet config  - 2
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+     # DependsOn: ["demoVPC1"]
+      VpcId: 
+        Fn::ImportValue: !Ref VPCId
+      #CidrBlock: 10.0.4.0/24
+      CidrBlock: !Ref CidrBlock2
+
+      AvailabilityZone: eu-north-1c
+      MapPublicIpOnLaunch: false    #jumpbox subnet public  for other box set as false
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1Subnet
+       - Key: Name
+         Value: SubnetId
+ 
+  # RouteTable for Subnet
+  RouteTable2:
+    Type: AWS::EC2::RouteTable
+   # DependsOn: ["demoVPC1"]
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Ref VPCId
+      Tags:
+       - Key: Project
+         Value: atudevopsdemo1RouteTable
+       - Key: Name
+         Value: RouteTableId2
+ 
+  # Associate Subnet and Routetable
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: ["Subnet2","RouteTable2"]
+    Properties:
+      RouteTableId: !Ref RouteTable2
+      SubnetId: !Ref Subnet2  

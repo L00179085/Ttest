@@ -1,0 +1,43 @@
+[
+    {
+        "ParameterKey": "VPCId",
+        "ParameterValue": "demoVPC1ID"
+    },
+    {
+        "ParameterKey": "DBUsername",
+        "ParameterValue": "sa"
+        
+    },
+
+    {
+        
+        "ParameterKey": "DBPassword",
+        "ParameterValue": "{{resolve:ssm-secure:DBPassword}}"
+        
+    },
+    
+    {
+        
+        "ParameterKey": "DBSubnetGroupName",
+        "ParameterValue": "demoDBSubnetGroup"
+        
+    },
+    
+    {
+        "ParameterKey": "DBInstanceIdentifier",
+        "ParameterValue": "demoDBInstanceIdentifier"
+    },
+    {
+        
+        "ParameterKey": "CidrBlock1",
+        "ParameterValue": "10.0.3.0/24"
+        
+    },
+    {
+        
+        "ParameterKey": "CidrBlock2",
+        "ParameterValue": "10.0.4.0/24"
+        
+    }
+    
+]

@@ -1,0 +1,17 @@
+[
+    {
+        "ParameterKey": "VPCId",
+        "ParameterValue": "demoVPC1ID"
+    },
+
+    {
+        
+        "ParameterKey": "CidrBlock",
+        "ParameterValue": "10.0.1.0/24"
+        
+    }
+    
+    
+
+    
+]
